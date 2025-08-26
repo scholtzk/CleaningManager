@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,25 +8,26 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCleaners } from '@/hooks/useCleaners';
 import { User, Edit, Trash2, History, MessageSquare, Calendar } from 'lucide-react';
+import { firestoreUtils } from '@/lib/firestore';
 
 export const CleanerManagement = () => {
-  const { cleaners, loadCleaners } = useCleaners();
+  const { cleaners, loading, createCleaner, updateCleaner, deleteCleaner, refetch } = useCleaners();
   const [admins, setAdmins] = useState<any[]>([]);
+  
   const loadAdmins = async () => {
     try {
-      const res = await fetch('https://us-central1-property-manager-cf570.cloudfunctions.net/getAdmins');
-      if (res.ok) {
-        const data = await res.json();
-        setAdmins(data.admins || []);
-      }
+      const adminsData = await firestoreUtils.getWhere('admins', 'isActive', '==', true);
+      setAdmins(adminsData);
     } catch (e) {
       console.warn('Failed to load admins');
     }
   };
   
   // Load admins on mount
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useState(() => { loadAdmins(); });
+  useEffect(() => { 
+    loadAdmins(); 
+  }, []);
+
   const [newCleaner, setNewCleaner] = useState({
     name: '',
     flatRate: '',
@@ -56,49 +57,41 @@ export const CleanerManagement = () => {
     e.preventDefault();
     
     try {
-      let ok = false;
       if (newCleaner.role === 'admin') {
         // Create admin in separate collection
-        const resp = await fetch('https://us-central1-property-manager-cf570.cloudfunctions.net/createAdmin', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: newCleaner.name, email: newCleaner.email || '', lineUserId: newCleaner.lineUserId || '', phone: '' })
+        await firestoreUtils.add('admins', {
+          name: newCleaner.name,
+          email: newCleaner.email || '',
+          lineUserId: newCleaner.lineUserId || '',
+          phone: '',
+          isActive: true
         });
-        ok = resp.ok;
-        if (ok) await loadAdmins();
+        await loadAdmins();
       } else {
-        // Create cleaner
+        // Create cleaner using the hook
         const cleanerData = {
           name: newCleaner.name,
-          flatRate: parseInt(newCleaner.flatRate),
+          flatRate: parseInt(newCleaner.flatRate) || 0,
           currency: 'JPY',
-          isActive: true,
           phone: '',
           email: newCleaner.email || '',
           lineUserId: newCleaner.lineUserId || '',
           specialties: [],
           role: 'cleaner'
         };
-        const response = await fetch('https://us-central1-property-manager-cf570.cloudfunctions.net/createCleaner', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cleanerData)
-        });
-        ok = response.ok;
-        if (ok) await loadCleaners();
+        await createCleaner(cleanerData);
       }
 
-      if (ok) {
-        alert('Cleaner added successfully!');
-        setNewCleaner({
-          name: '',
-          flatRate: '',
-          email: '',
-          lineUserId: '',
-          role: 'cleaner'
-        });
-      } else {
-        alert('Error adding cleaner');
-      }
+      alert('Cleaner added successfully!');
+      setNewCleaner({
+        name: '',
+        flatRate: '',
+        email: '',
+        lineUserId: '',
+        role: 'cleaner'
+      });
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error adding cleaner:', error);
       alert('Error adding cleaner');
     }
   };
@@ -129,34 +122,25 @@ export const CleanerManagement = () => {
     try {
       let ok = false;
       if ((editingCleaner.role || 'cleaner') === 'admin') {
-        const resp = await fetch(`https://us-central1-property-manager-cf570.cloudfunctions.net/updateAdmin/${editingCleaner.id}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: editForm.name, email: editForm.email, lineUserId: editForm.lineUserId, phone: editForm.phone })
-        });
-        ok = resp.ok; if (ok) await loadAdmins();
+        await firestoreUtils.update('admins', editingCleaner.id, { name: editForm.name, email: editForm.email, lineUserId: editForm.lineUserId, phone: editForm.phone });
+        await loadAdmins();
       } else {
-        const response = await fetch(`https://us-central1-property-manager-cf570.cloudfunctions.net/updateCleaner/${editingCleaner.id}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cleanerData)
-        });
-        ok = response.ok; if (ok) await loadCleaners();
+        await updateCleaner(editingCleaner.id, cleanerData);
       }
 
-      if (ok) {
-        alert('Cleaner updated successfully!');
-        setEditingCleaner(null);
-        setEditForm({
-          name: '',
-          phone: '',
-          email: '',
-          flatRate: '',
-          specialties: '',
-          lineUserId: '',
-          role: 'cleaner'
-        });
-      } else {
-        alert('Error updating cleaner');
-      }
+      alert('Cleaner updated successfully!');
+      setEditingCleaner(null);
+      setEditForm({
+        name: '',
+        phone: '',
+        email: '',
+        flatRate: '',
+        specialties: '',
+        lineUserId: '',
+        role: 'cleaner'
+      });
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error updating cleaner:', error);
       alert('Error updating cleaner');
     }
   };
@@ -167,26 +151,16 @@ export const CleanerManagement = () => {
     }
 
     try {
-      const url = type === 'admin' 
-        ? `https://us-central1-property-manager-cf570.cloudfunctions.net/deleteAdmin/${cleanerId}`
-        : `https://us-central1-property-manager-cf570.cloudfunctions.net/deleteCleaner/${cleanerId}`;
-      const response = await fetch(url, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } });
-
-      if (response.ok) {
-        alert('Cleaner deleted successfully!');
-        setEditingCleaner(null);
-        if (type === 'admin') await loadAdmins(); else await loadCleaners();
-      } else if (response.status === 404) {
-        // Cleaner not found - remove from local state and refresh
-        alert('Cleaner not found - it may have already been deleted. Refreshing list...');
-        setEditingCleaner(null);
-        if (type === 'admin') await loadAdmins(); else await loadCleaners();
+      if (type === 'admin') {
+        await firestoreUtils.update('admins', cleanerId, { isActive: false });
+        await loadAdmins();
       } else {
-        const errorData = await response.json();
-        alert(`Error deleting cleaner: ${errorData.error || 'Unknown error'}`);
+        await deleteCleaner(cleanerId);
       }
+      alert('Cleaner deleted successfully!');
+      setEditingCleaner(null);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error deleting cleaner:', error);
       alert('Error deleting cleaner');
     }
   };
@@ -206,17 +180,13 @@ export const CleanerManagement = () => {
       const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
       const endDate = new Date(parseInt(year), parseInt(month), 0);
 
-      const response = await fetch('https://us-central1-property-manager-cf570.cloudfunctions.net/getCleaningAssignments');
-      const data = await response.json();
-      
-      const assignments = data.assignments.filter((assignment: any) => {
+             const assignments = await firestoreUtils.getWhere('cleaning-assignments', 'cleanerId', '==', workHistoryCleaner.id);
+      const filteredAssignments = assignments.filter((assignment: any) => {
         const assignmentDate = new Date(assignment.date);
-        return assignment.cleanerId === workHistoryCleaner.id &&
-               assignmentDate >= startDate &&
-               assignmentDate <= endDate;
+        return assignmentDate >= startDate && assignmentDate <= endDate;
       });
 
-      setWorkHistory(assignments);
+      setWorkHistory(filteredAssignments);
     } catch (error) {
       console.error('Error loading work history:', error);
       alert('Error loading work history');
@@ -314,7 +284,7 @@ export const CleanerManagement = () => {
       {/* Split lists into cleaners and admins */}
       {(() => {
         const cleanerList = cleaners.filter((c: any) => (c.role || 'cleaner') !== 'admin');
-        const adminList = cleaners.filter((c: any) => c.role === 'admin');
+        const adminList = admins; // Use the 'admins' state directly
         return (
           <>
             <Card>

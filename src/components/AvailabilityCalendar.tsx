@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { useAvailability } from '@/hooks/useAvailability';
 import { useParams, useNavigate } from 'react-router-dom';
+import { cleanerUtils } from '@/lib/firestore';
 
 interface AvailabilityCalendarProps {
   cleanerId?: string;
@@ -20,13 +21,10 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   const navigate = useNavigate();
   const { getAvailabilityLink, getCleanerAvailability, updateCleanerAvailability, availability, loading, error } = useAvailability();
   
-  const FUNCTIONS_BASE_URL = 'https://us-central1-property-manager-cf570.cloudfunctions.net';
   const fetchCleanerName = async (id: string): Promise<string | null> => {
     try {
-      const resp = await fetch(`${FUNCTIONS_BASE_URL}/getCleaners`);
-      if (!resp.ok) return null;
-      const data = await resp.json();
-      const found = (data.cleaners || []).find((c: any) => c.id === id);
+      const cleaners = await cleanerUtils.getAllActive();
+      const found = cleaners.find((c: any) => c.id === id);
       return found?.name || null;
     } catch {
       return null;

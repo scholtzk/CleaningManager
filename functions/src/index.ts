@@ -28,9 +28,3 @@ export const bookings = onRequest({ cors: true }, (request, response) => {
     response.status(405).json({ error: "Method not allowed" });
   });
 });
-
-// Export additional HTTPS functions (v2)
-export * from './line-notifications';
-export * from './cleaners';
-export * from './cleaning-assignments';
-export * from './admins';

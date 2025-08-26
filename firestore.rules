@@ -5,25 +5,41 @@ service cloud.firestore {
     // Allow access to cleaners collection
     match /cleaners/{cleanerId} {
       allow read: if true; // Anyone can read cleaner data
-      allow write: if true; // Anyone can write cleaner data (you may want to restrict this)
+      allow create: if true; // Anyone can create cleaner data
+      allow update: if true; // Anyone can update cleaner data
+      allow delete: if false; // No one can delete (soft delete only)
     }
     
     // Allow access to cleaning assignments collection
     match /cleaning-assignments/{assignmentId} {
       allow read: if true; // Anyone can read assignment data
-      allow write: if true; // Anyone can write assignment data (you may want to restrict this)
+      allow create: if true; // Anyone can create assignment data
+      allow update: if true; // Anyone can update assignment data
+      allow delete: if true; // Anyone can delete assignment data
     }
 
-    // Allow access to cleaner availability collection (development only)
+    // Allow access to cleaner availability collection
     match /cleaner_availability/{docId} {
       allow read: if true;  // Anyone can read availability
-      allow write: if true; // Anyone can write availability (adjust for production)
+      allow create: if true; // Anyone can create availability
+      allow update: if true; // Anyone can update availability
+      allow delete: if true; // Anyone can delete availability
     }
     
-    // Allow access to cleaner availability links collection (development only)
-    match /cleaner_availability_links/{linkId} {
+    // Allow access to cleaner availability links collection
+    match /availability_links/{linkId} {
       allow read: if true;  // Anyone can read links
-      allow write: if true; // Anyone can create/update links (adjust for production)
+      allow create: if true; // Anyone can create links
+      allow update: if true; // Anyone can update links
+      allow delete: if true; // Anyone can delete links
+    }
+    
+    // Allow access to admins collection
+    match /admins/{adminId} {
+      allow read: if true; // Anyone can read admin data
+      allow create: if true; // Anyone can create admin data
+      allow update: if true; // Anyone can update admin data
+      allow delete: if false; // No one can delete (soft delete only)
     }
     
     // Default rule - deny all other access

@@ -146,37 +146,14 @@ export const BookingCalendar = () => {
     }
   };
 
-  // Firebase Functions base URL (update if region differs)
-  const FUNCTIONS_BASE_URL = 'https://us-central1-property-manager-cf570.cloudfunctions.net';
-
-  // Send monthly assignments to all cleaners
+  // Send monthly assignments to all cleaners (disabled - LINE notifications removed)
   const handleSendMonthlyAssignments = async () => {
     const monthString = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
-    try {
-      const resp = await fetch(`${FUNCTIONS_BASE_URL}/sendMonthlyAssignments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ month: monthString })
-      });
-
-      if (!resp.ok) {
-        throw new Error(`Server responded ${resp.status}`);
-      }
-
-      const data = await resp.json();
-
-      toast({
-        title: 'Schedules sent',
-        description: `${data.totalMessagesSent || 0} cleaners notified for ${monthString}.`
-      });
-    } catch (err) {
-      console.error('Failed to send monthly assignments', err);
-      toast({
-        title: 'Error',
-        description: 'Failed to push schedules to cleaners.',
-        variant: 'destructive'
-      });
-    }
+    toast({
+      title: 'Feature Disabled',
+      description: 'LINE notifications have been removed. Schedules are managed directly in the calendar.',
+      variant: 'destructive'
+    });
   };
 
   const monthNames = [

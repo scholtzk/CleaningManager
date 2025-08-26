@@ -13,7 +13,7 @@ import { AvailabilityCalendar } from './AvailabilityCalendar';
 
 export const AvailabilityManagement: React.FC = () => {
   const { cleaners, loading: cleanersLoading } = useCleaners();
-  const { availabilityLinks, getAllAvailabilityLinks, createAvailabilityLinks, loading } = useAvailability();
+  const { availabilityLinks, getAllAvailabilityLinks, createAvailabilityLink, loading } = useAvailability();
   
   const [selectedCleaners, setSelectedCleaners] = useState<string[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<string>('');
@@ -85,20 +85,17 @@ export const AvailabilityManagement: React.FC = () => {
     try {
       setCreatingLinks(true);
       
-      // Send stable links via LINE for selected cleaners
+      // Create availability links for selected cleaners
       const sendResults = await Promise.allSettled(
         selectedCleaners.map(async (cleanerId) => {
-          const token = buildStableToken(cleanerId, selectedMonth);
-          const resp = await fetch('https://us-central1-property-manager-cf570.cloudfunctions.net/sendAvailabilityLink', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ cleanerId, uniqueLink: token, month: selectedMonth })
-          });
-          if (!resp.ok) {
-            const text = await resp.text();
-            throw new Error(text || `HTTP ${resp.status}`);
+          const cleaner = cleaners.find(c => c.id === cleanerId);
+          if (!cleaner) {
+            throw new Error('Cleaner not found');
           }
-          return resp.json();
+          
+          const token = buildStableToken(cleanerId, selectedMonth);
+                     await createAvailabilityLink(cleanerId, cleaner.name, selectedMonth);
+           return { success: true };
         })
       );
       

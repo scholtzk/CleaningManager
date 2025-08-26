@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { cleaningAssignmentUtils } from '@/lib/firestore';
 
 interface CleaningAssignment {
   date: string;
@@ -34,14 +35,8 @@ export const useCleaningAssignments = (): UseCleaningAssignmentsReturn => {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('https://getcleaningassignments-463sryhoiq-uc.a.run.app');
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch cleaning assignments');
-      }
-      
-      const data = await response.json();
-      setCleaningAssignments(data.assignments || []);
+      const assignmentsData = await cleaningAssignmentUtils.getAll();
+      setCleaningAssignments(assignmentsData || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -51,18 +46,7 @@ export const useCleaningAssignments = (): UseCleaningAssignmentsReturn => {
 
   const createOrUpdateAssignment = async (assignment: Partial<CleaningAssignment>) => {
     try {
-      const response = await fetch('https://us-central1-property-manager-cf570.cloudfunctions.net/createOrUpdateCleaningAssignment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(assignment),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create/update cleaning assignment');
-      }
-
+      await cleaningAssignmentUtils.createOrUpdate(assignment);
       // Refetch to get updated data
       await fetchAssignments();
     } catch (err) {
@@ -72,18 +56,13 @@ export const useCleaningAssignments = (): UseCleaningAssignmentsReturn => {
 
   const updateCleanerAssignment = async (date: string, cleanerId: string | null, cleanerName: string | null) => {
     try {
-      const response = await fetch(`https://us-central1-property-manager-cf570.cloudfunctions.net/updateCleanerAssignment/${date}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ cleanerId, cleanerName }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update cleaner assignment');
+      // Find the assignment for this date
+      const assignment = cleaningAssignments.find(a => a.currentCleaningDate === date);
+      if (!assignment) {
+        throw new Error('Assignment not found for this date');
       }
 
+      await cleaningAssignmentUtils.updateCleaner(date, assignment.bookingId, cleanerId, cleanerName);
       // Refetch to get updated data
       await fetchAssignments();
     } catch (err) {
@@ -93,14 +72,7 @@ export const useCleaningAssignments = (): UseCleaningAssignmentsReturn => {
 
   const deleteAssignment = async (date: string) => {
     try {
-      const response = await fetch(`https://deletecleaningassignment-463sryhoiq-uc.a.run.app/${date}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete cleaning assignment');
-      }
-
+      await cleaningAssignmentUtils.delete(date);
       // Refetch to get updated data
       await fetchAssignments();
     } catch (err) {
@@ -110,18 +82,7 @@ export const useCleaningAssignments = (): UseCleaningAssignmentsReturn => {
 
   const syncAssignments = async (bookings: any[]) => {
     try {
-      const response = await fetch('https://us-central1-property-manager-cf570.cloudfunctions.net/syncCleaningAssignments', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ bookings }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to sync cleaning assignments');
-      }
-
+      await cleaningAssignmentUtils.syncFromBookings(bookings);
       // Refetch to get updated data
       await fetchAssignments();
     } catch (err) {
@@ -130,9 +91,10 @@ export const useCleaningAssignments = (): UseCleaningAssignmentsReturn => {
   };
 
   const updateAssignmentOptimistically = (assignment: Partial<CleaningAssignment>) => {
+    // Update local state immediately for better UX
     setCleaningAssignments(prev => 
       prev.map(a => {
-        if (a.bookingId === assignment.bookingId && a.currentCleaningDate === assignment.currentCleaningDate) {
+        if (a.currentCleaningDate === assignment.currentCleaningDate && a.bookingId === assignment.bookingId) {
           return { ...a, ...assignment };
         }
         return a;
@@ -153,6 +115,6 @@ export const useCleaningAssignments = (): UseCleaningAssignmentsReturn => {
     updateCleanerAssignment,
     deleteAssignment,
     syncAssignments,
-    updateAssignmentOptimistically,
+    updateAssignmentOptimistically
   };
 }; 
