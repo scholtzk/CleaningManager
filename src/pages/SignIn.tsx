@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Eye, EyeOff, Building2, User, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import FirebaseTest from '@/components/FirebaseTest';
 
 const SignIn = () => {
   const [activeTab, setActiveTab] = useState<'login' | 'signup'>('login');
@@ -270,6 +271,11 @@ const SignIn = () => {
         {/* Footer */}
         <div className="text-center mt-6 text-sm text-gray-500">
           <p>Secure authentication powered by Firebase</p>
+        </div>
+        
+        {/* Firebase Test */}
+        <div className="mt-4">
+          <FirebaseTest />
         </div>
       </div>
     </div>
