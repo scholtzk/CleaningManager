@@ -5,6 +5,7 @@ import {
   getDoc, 
   addDoc, 
   updateDoc, 
+  setDoc,
   deleteDoc, 
   query, 
   where, 
@@ -69,10 +70,10 @@ export const firestoreUtils = {
   // Set a document with a specific ID
   async set<T>(collectionName: string, id: string, data: Omit<T, 'id'>): Promise<void> {
     const docRef = doc(db, collectionName, id);
-    await updateDoc(docRef, {
+    await setDoc(docRef, {
       ...data,
       updatedAt: serverTimestamp()
-    });
+    }, { merge: true });
   }
 };
 
@@ -112,10 +113,10 @@ export const cleaningAssignmentUtils = {
   async createOrUpdate(assignmentData: any): Promise<void> {
     const docId = `${assignmentData.originalBookingDate}_${assignmentData.bookingId}`;
     const docRef = doc(db, 'cleaning-assignments', docId);
-    await updateDoc(docRef, {
+    await setDoc(docRef, {
       ...assignmentData,
       updatedAt: serverTimestamp()
-    });
+    }, { merge: true }); // merge: true will update existing or create new
   },
 
   async updateCleaner(date: string, bookingId: string, cleanerId: string | null, cleanerName: string | null): Promise<void> {
@@ -164,6 +165,46 @@ export const cleaningAssignmentUtils = {
     }
 
     await batch.commit();
+  },
+
+  // Migration function to convert old simple date IDs to new composite format
+  async migrateOldAssignments(): Promise<void> {
+    console.log('Starting migration of old cleaning assignments...');
+    
+    const allAssignments = await this.getAll();
+    const batch = writeBatch(db);
+    let migrationCount = 0;
+
+    for (const assignment of allAssignments) {
+      // Check if this is an old format document (simple date ID)
+      const isOldFormat = /^\d{4}-\d{2}-\d{2}$/.test(assignment.id);
+      
+      if (isOldFormat && assignment.bookingId) {
+        // Create new document with composite ID
+        const newDocId = `${assignment.originalBookingDate}_${assignment.bookingId}`;
+        const newDocRef = doc(db, 'cleaning-assignments', newDocId);
+        
+        // Set the new document
+        batch.set(newDocRef, {
+          ...assignment,
+          updatedAt: serverTimestamp()
+        });
+        
+        // Delete the old document
+        const oldDocRef = doc(db, 'cleaning-assignments', assignment.id);
+        batch.delete(oldDocRef);
+        
+        migrationCount++;
+        console.log(`Migrating: ${assignment.id} → ${newDocId}`);
+      }
+    }
+
+    if (migrationCount > 0) {
+      await batch.commit();
+      console.log(`✅ Migration complete: ${migrationCount} documents migrated`);
+    } else {
+      console.log('✅ No documents need migration');
+    }
   }
 };
 

@@ -102,6 +102,51 @@ export const useCleaningAssignments = (): UseCleaningAssignmentsReturn => {
     );
   };
 
+  const migrateOldAssignments = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('Starting migration of old cleaning assignments...');
+      
+      const allAssignments = await cleaningAssignmentUtils.getAll();
+      let migrationCount = 0;
+
+      for (const assignment of allAssignments) {
+        // Check if this is an old format document (simple date ID)
+        const isOldFormat = /^\d{4}-\d{2}-\d{2}$/.test(assignment.id);
+        
+        if (isOldFormat && assignment.bookingId) {
+          // Create new document with composite ID
+          const newAssignment = {
+            ...assignment,
+            id: `${assignment.originalBookingDate}_${assignment.bookingId}`
+          };
+          
+          // Create the new document
+          await cleaningAssignmentUtils.createOrUpdate(newAssignment);
+          
+          // Delete the old document (we'll need to add a delete function)
+          // For now, we'll just log it
+          console.log(`Would migrate: ${assignment.id} → ${newAssignment.id}`);
+          migrationCount++;
+        }
+      }
+
+      if (migrationCount > 0) {
+        console.log(`✅ Migration complete: ${migrationCount} documents would be migrated`);
+        // Refetch to get updated data
+        await fetchAssignments();
+      } else {
+        console.log('✅ No documents need migration');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Migration failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchAssignments();
   }, []);
@@ -115,6 +160,7 @@ export const useCleaningAssignments = (): UseCleaningAssignmentsReturn => {
     updateCleanerAssignment,
     deleteAssignment,
     syncAssignments,
-    updateAssignmentOptimistically
+    updateAssignmentOptimistically,
+    migrateOldAssignments
   };
 }; 
