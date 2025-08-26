@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 
 // Firebase web-SDK configuration for property-manager-cf570 project
 
@@ -17,4 +18,5 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 // Export the Firestore instance for use throughout the app
-export const db = getFirestore(app); 
+export const db = getFirestore(app);
+export const auth = getAuth(app); 

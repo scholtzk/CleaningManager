@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { BookingCalendar } from '@/components/BookingCalendar';
 import { CleanerManagement } from '@/components/CleanerManagement';
 import { AvailabilityManagement } from '@/components/AvailabilityManagement';
+import { MigrationTool } from '@/components/MigrationTool';
 import { Button } from '@/components/ui/button';
-import { Users, Calendar, Link } from 'lucide-react';
+import { Users, Calendar, Link, RefreshCw } from 'lucide-react';
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState<'calendar' | 'cleaners' | 'availability'>('calendar');
+  const [activeTab, setActiveTab] = useState<'calendar' | 'cleaners' | 'availability' | 'migration'>('calendar');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20">
@@ -47,6 +48,14 @@ const Index = () => {
               <Link className="w-4 h-4" />
               <span>Availability</span>
             </Button>
+            <Button
+              variant={activeTab === 'migration' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('migration')}
+              className="flex items-center space-x-2"
+            >
+              <RefreshCw className="w-4 h-4" />
+              <span>Migration</span>
+            </Button>
           </div>
         </div>
 
@@ -54,6 +63,7 @@ const Index = () => {
         {activeTab === 'calendar' && <BookingCalendar />}
         {activeTab === 'cleaners' && <CleanerManagement />}
         {activeTab === 'availability' && <AvailabilityManagement />}
+        {activeTab === 'migration' && <MigrationTool />}
       </div>
     </div>
   );
